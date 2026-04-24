@@ -19,12 +19,9 @@ const SignInComponent = () => {
     if (isCheckoutPage) {
       return `/checkout?step=2&id=${courseId}&showSignUp=true`;
     }
-
-    const userType = user?.publicMetadata?.userType as string;
-    if (userType === "teacher") {
-      return "/teacher/courses";
-    }
-    return "/user/courses";
+    // After sign-in, route through a role-aware redirect that reloads the user once.
+    // This prevents stale/missing publicMetadata from causing incorrect redirects.
+    return "/post-auth";
   };
 
   return (

@@ -17,12 +17,15 @@ import courseRoutes from "./routes/courseRoutes";
 import userClerkRoutes from "./routes/userClerkRoutes";
 import transactionRoutes from "./routes/transactionRoutes";
 import userCourseProgressRoutes from "./routes/userCourseProgressRoutes";
+import razorpayRoutes from "./routes/razorpayRoutes";
 
 /* CONFIGURATIONS */
 dotenv.config();
 const isProduction = process.env.NODE_ENV === "production";
 if (!isProduction) {
-  dynamoose.aws.ddb.local();
+  const dynamoEndpoint = process.env.DYNAMODB_LOCAL_ENDPOINT;
+  // Default DynamoDB Local endpoint is http://localhost:8000
+  dynamoose.aws.ddb.local(dynamoEndpoint ? dynamoEndpoint : undefined);
 }
 
 export const clerkClient = createClerkClient({
@@ -48,6 +51,7 @@ app.use("/courses", courseRoutes);
 app.use("/users/clerk", requireAuth(), userClerkRoutes);
 app.use("/transactions", requireAuth(), transactionRoutes);
 app.use("/users/course-progress", requireAuth(), userCourseProgressRoutes);
+app.use("/api", requireAuth(), razorpayRoutes);
 
 /* SERVER */
 const port = process.env.PORT || 3000;

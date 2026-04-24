@@ -11,6 +11,7 @@ import Transaction from "../models/transactionModel";
 import Course from "../models/courseModel";
 import UserCourseProgress from "../models/userCourseProgressModel";
 import dotenv from "dotenv";
+console.log("NODE_ENV:", process.env.NODE_ENV);
 
 dotenv.config();
 let client: DynamoDBClient;
@@ -22,15 +23,16 @@ if (!isProduction) {
   dynamoose.aws.ddb.local();
   client = new DynamoDBClient({
     endpoint: "http://localhost:8000",
-    region: "us-east-2",
+    region: "ap-south-1",
     credentials: {
-      accessKeyId: "dummyKey123",
-      secretAccessKey: "dummyKey123",
+      // DynamoDB Local ignores credentials but SDK requires them.
+      accessKeyId: "dummy",
+      secretAccessKey: "dummy",
     },
   });
 } else {
   client = new DynamoDBClient({
-    region: process.env.AWS_REGION || "us-east-2",
+    region: process.env.AWS_REGION || "ap-south-1",
   });
 }
 

@@ -164,6 +164,30 @@ export const api = createApi({
         body: { amount },
       }),
     }),
+    createRazorpayOrder: build.mutation<
+      { order_id: string; amount: number; currency: string },
+      { courseId: string }
+    >({
+      query: ({ courseId }) => ({
+        url: `/api/create-order`,
+        method: "POST",
+        body: { courseId },
+      }),
+    }),
+    verifyRazorpayPayment: build.mutation<
+      { verified: boolean },
+      {
+        razorpay_order_id: string;
+        razorpay_payment_id: string;
+        razorpay_signature: string;
+      }
+    >({
+      query: (body) => ({
+        url: `/api/verify-payment`,
+        method: "POST",
+        body,
+      }),
+    }),
     createTransaction: build.mutation<Transaction, Partial<Transaction>>({
       query: (transaction) => ({
         url: "transactions",
@@ -244,6 +268,8 @@ export const {
   useGetTransactionsQuery,
   useCreateTransactionMutation,
   useCreateStripePaymentIntentMutation,
+  useCreateRazorpayOrderMutation,
+  useVerifyRazorpayPaymentMutation,
   useGetUserEnrolledCoursesQuery,
   useGetUserCourseProgressQuery,
   useUpdateUserCourseProgressMutation,

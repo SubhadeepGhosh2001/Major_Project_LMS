@@ -7,13 +7,9 @@ import UserCourseProgress from "../models/userCourseProgressModel";
 
 dotenv.config();
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error(
-    "STRIPE_SECRET_KEY os required but was not found in env variables"
-  );
-}
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY)
+  : null;
 
 export const listTransactions = async (
   req: Request,
@@ -39,6 +35,14 @@ export const createStripePaymentIntent = async (
   req: Request,
   res: Response
 ): Promise<void> => {
+  if (!stripe) {
+    res.status(500).json({
+      message:
+        "Stripe is not configured. Set STRIPE_SECRET_KEY in server environment variables.",
+    });
+    return;
+  }
+
   let { amount } = req.body;
 
   if (!amount || amount <= 0) {

@@ -1,60 +1,113 @@
-import React from "react";
-import StripeProvider from "./StripeProvider";
-import {
-  PaymentElement,
-  useElements,
-  useStripe,
-} from "@stripe/react-stripe-js";
+import React, { useMemo, useState } from "react";
+import Script from "next/script";
 import { useCheckoutNavigation } from "@/hooks/useCheckoutNavigation";
 import { useCurrentCourse } from "@/hooks/useCurrentCourse";
 import { useClerk, useUser } from "@clerk/nextjs";
 import CoursePreview from "@/components/CoursePreview";
 import { CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCreateTransactionMutation } from "@/state/api";
+import {
+  useCreateRazorpayOrderMutation,
+  useCreateTransactionMutation,
+  useVerifyRazorpayPaymentMutation,
+} from "@/state/api";
 import { toast } from "sonner";
 
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
+
 const PaymentPageContent = () => {
-  const stripe = useStripe();
-  const elements = useElements();
   const [createTransaction] = useCreateTransactionMutation();
+  const [createOrder] = useCreateRazorpayOrderMutation();
+  const [verifyPayment] = useVerifyRazorpayPaymentMutation();
   const { navigateToStep } = useCheckoutNavigation();
   const { course, courseId } = useCurrentCourse();
   const { user } = useUser();
   const { signOut } = useClerk();
+  const [isPaying, setIsPaying] = useState(false);
+
+  const razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+  const isRazorpayReady = useMemo(() => {
+    return Boolean(razorpayKeyId);
+  }, [razorpayKeyId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!stripe || !elements) {
-      toast.error("Stripe service is not available");
+    if (!course || !courseId) return;
+
+    if (!isRazorpayReady) {
+      toast.error("Razorpay is not configured. Set NEXT_PUBLIC_RAZORPAY_KEY_ID.");
       return;
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_LOCAL_URL
-      ? `http://${process.env.NEXT_PUBLIC_LOCAL_URL}`
-      : process.env.NEXT_PUBLIC_VERCEL_URL
-      ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-      : undefined;
+    if (!window.Razorpay) {
+      toast.error("Razorpay Checkout failed to load. Please refresh and try again.");
+      return;
+    }
 
-    const result = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${baseUrl}/checkout?step=3&id=${courseId}`,
-      },
-      redirect: "if_required",
-    });
+    setIsPaying(true);
+    try {
+      const order = await createOrder({ courseId }).unwrap();
 
-    if (result.paymentIntent?.status === "succeeded") {
-      const transactionData: Partial<Transaction> = {
-        transactionId: result.paymentIntent.id,
-        userId: user?.id,
-        courseId: courseId,
-        paymentProvider: "stripe",
-        amount: course?.price || 0,
+      const options = {
+        key: razorpayKeyId,
+        order_id: order.order_id,
+        amount: order.amount,
+        currency: order.currency,
+        name: "Learning Management",
+        description: course.title ?? "Course Purchase",
+        prefill: {
+          name: user?.fullName ?? "",
+          email: user?.primaryEmailAddress?.emailAddress ?? "",
+        },
+        modal: {
+          ondismiss: () => {
+            toast.message("Payment cancelled");
+          },
+        },
+        handler: async (response: any) => {
+          try {
+            const verified = await verifyPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }).unwrap();
+
+            if (!verified.verified) {
+              toast.error("Payment verification failed");
+              return;
+            }
+
+            const transactionData: Partial<Transaction> = {
+              transactionId: response.razorpay_payment_id,
+              userId: user?.id,
+              courseId: courseId,
+              paymentProvider: "razorpay" as Transaction["paymentProvider"],
+              amount: course?.price || 0,
+            };
+
+            await createTransaction(transactionData).unwrap();
+            navigateToStep(3);
+          } catch (err) {
+            toast.error("Payment verification failed");
+          }
+        },
       };
 
-      await createTransaction(transactionData), navigateToStep(3);
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (resp: any) => {
+        toast.error(resp?.error?.description || "Payment failed");
+      });
+
+      rzp.open();
+    } catch (err) {
+      toast.error("Failed to start payment");
+    } finally {
+      setIsPaying(false);
     }
   };
 
@@ -67,6 +120,10 @@ const PaymentPageContent = () => {
 
   return (
     <div className="payment">
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+      />
       <div className="payment__container">
         {/* Order Summary */}
         <div className="payment__preview">
@@ -92,10 +149,12 @@ const PaymentPageContent = () => {
                 <div className="payment__card-container">
                   <div className="payment__card-header">
                     <CreditCard size={24} />
-                    <span>Credit/Debit Card</span>
+                    <span>Razorpay Checkout</span>
                   </div>
                   <div className="payment__card-element">
-                    <PaymentElement />
+                    <div className="text-sm text-muted-foreground">
+                      You will be redirected to a secure Razorpay payment modal.
+                    </div>
                   </div>
                 </div>
               </div>
@@ -119,19 +178,15 @@ const PaymentPageContent = () => {
           form="payment-form"
           type="submit"
           className="payment__submit"
-          disabled={!stripe || !elements}
+          disabled={!isRazorpayReady || isPaying}
         >
-          Pay with Credit Card
+          {isPaying ? "Starting Payment..." : "Pay with Razorpay"}
         </Button>
       </div>
     </div>
   );
 };
 
-const PaymentPage = () => (
-  <StripeProvider>
-    <PaymentPageContent />
-  </StripeProvider>
-);
+const PaymentPage = () => <PaymentPageContent />;
 
 export default PaymentPage;

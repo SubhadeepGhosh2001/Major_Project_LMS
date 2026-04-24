@@ -42,16 +42,24 @@ export const createCourse = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { teacherId, teacherName } = req.body;
-
-    if (!teacherId || !teacherName) {
-      res.status(400).json({ message: "Teacher Id and name are required" });
+    const { userId } = getAuth(req);
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
+    const clerkUser = (req as any).clerkUser as
+      | { fullName?: string | null; firstName?: string | null; lastName?: string | null }
+      | undefined;
+
+    const teacherName =
+      clerkUser?.fullName ||
+      [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(" ") ||
+      "Unknown Teacher";
+
     const newCourse = new Course({
       courseId: uuidv4(),
-      teacherId,
+      teacherId: userId,
       teacherName,
       title: "Untitled Course",
       description: "",
