@@ -30,7 +30,7 @@ COPY --from=build /app/dist ${LAMBDA_TASK_ROOT}
 COPY --from=build /app/node_modules ${LAMBDA_TASK_ROOT}/node_modules
 
 # Copy package.json (optional)
-COPY --from=build /app/package*.json ${LAMBDA_TASK_ROOT}
+COPY --from=build /app/package*.json ${LAMBDA_TASK_ROOT}/
 
 # Set environment variables (adjust as needed)
 ENV NODE_ENV=production
