@@ -177,14 +177,14 @@ const Course = () => {
                   <h4 className="course__instructor-name">
                     {course.teacherName}
                   </h4>
-                  <p className="course__instructor-title">Senior UX Designer</p>
+                  <p className="course__instructor-title">Senior Full Stack Developer</p>
                 </div>
               </div>
               <div className="course__instructor-bio">
                 <p>
-                  A seasoned Senior UX Designer with over 15 years of experience
+                  A seasoned Senior Full Stack with over 5 years of experience
                   in creating intuitive and engaging digital experiences.
-                  Expertise in leading UX design projects.
+                  Expertise in leading Full Stack development projects.
                 </p>
               </div>
             </CardContent>
