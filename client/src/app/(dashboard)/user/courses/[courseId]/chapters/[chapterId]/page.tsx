@@ -182,7 +182,7 @@ const Course = () => {
               </div>
               <div className="course__instructor-bio">
                 <p>
-                  A seasoned Senior Full Stack with over 5 years of experience
+                  A seasoned Senior Full Stack Developer with over 5 years of experience
                   in creating intuitive and engaging digital experiences.
                   Expertise in leading Full Stack development projects.
                 </p>
