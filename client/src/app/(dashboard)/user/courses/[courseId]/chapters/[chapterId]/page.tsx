@@ -1,16 +1,20 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import ReactPlayer from "react-player";
 import Loading from "@/components/Loading";
 import { useCourseProgressData } from "@/hooks/useCourseProgressData";
+import { useRouter } from "next/navigation";
+import { hasValidVideoUrl } from "@/lib/course-utils";
 
 const Course = () => {
+  const router = useRouter();
   const {
     user,
+    courseId,
+    chapterId,
     course,
     userProgress,
     currentSection,
@@ -21,9 +25,21 @@ const Course = () => {
     hasMarkedComplete,
     setHasMarkedComplete,
   } = useCourseProgressData();
-  console.log("currentChapter.video:", currentChapter);
 
-  const playerRef = useRef<ReactPlayer>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (!courseId || !currentChapter?.chapterId) return;
+
+    if (chapterId !== currentChapter.chapterId) {
+      router.replace(
+        `/user/courses/${courseId}/chapters/${currentChapter.chapterId}`,
+        {
+          scroll: false,
+        }
+      );
+    }
+  }, [chapterId, courseId, currentChapter?.chapterId, router]);
 
   const handleProgress = ({ played }: { played: number }) => {
     if (
@@ -46,6 +62,8 @@ const Course = () => {
   if (isLoading) return <Loading />;
   if (!user) return <div>Please sign in to view this course.</div>;
   if (!course || !userProgress) return <div>Error loading course</div>;
+
+  console.log("VIDEO URL:", currentChapter?.video);
 
   return (
     <div className="course">
@@ -75,20 +93,19 @@ const Course = () => {
 
         <Card className="course__video">
           <CardContent className="course__video-container">
-            {currentChapter?.video ? (
-              <ReactPlayer
-                ref={playerRef}
-                url={currentChapter.video as string}
+            {hasValidVideoUrl(currentChapter?.video) ? (
+              <video
+                ref={videoRef}
+                src={currentChapter.video}
                 controls
-                width="100%"
-                height="100%"
-                onProgress={handleProgress}
-                config={{
-                  file: {
-                    attributes: {
-                      controlsList: "nodownload",
-                    },
-                  },
+                className="h-full w-full"
+                controlsList="nodownload"
+                onTimeUpdate={(event) => {
+                  const video = event.currentTarget;
+
+                  if (!video.duration || Number.isNaN(video.duration)) return;
+
+                  handleProgress({ played: video.currentTime / video.duration });
                 }}
               />
             ) : (

@@ -303,7 +303,11 @@ export const createCourseFormData = (
     ...section,
     chapters: section.chapters.map((chapter) => ({
       ...chapter,
-      video: chapter.video,
+      video: typeof chapter.video === "string" ? chapter.video : undefined,
+      type:
+        typeof chapter.video === "string" && chapter.video.trim().length > 0
+          ? "Video"
+          : chapter.type,
     })),
   }));
 
@@ -354,7 +358,7 @@ async function uploadVideo(
   courseId: string,
   sectionId: string,
   getUploadVideoUrl: any
-) {
+): Promise<Chapter> {
   const file = chapter.video as File;
 
   try {
@@ -377,7 +381,7 @@ async function uploadVideo(
       `Video uploaded successfully for chapter ${chapter.chapterId}`
     );
 
-    return { ...chapter, video: videoUrl };
+    return { ...chapter, video: videoUrl, type: "Video" as Chapter["type"] };
   } catch (error) {
     console.error(
       `Failed to upload video for chapter ${chapter.chapterId}:`,

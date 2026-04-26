@@ -6,6 +6,11 @@ import {
   useUpdateUserCourseProgressMutation,
 } from "@/state/api";
 import { useUser } from "@clerk/nextjs";
+import {
+  findFirstChapterWithVideo,
+  hasValidVideoUrl,
+  normalizeCourse,
+} from "@/lib/course-utils";
 
 export const useCourseProgressData = () => {
   const { courseId, chapterId } = useParams();
@@ -13,12 +18,14 @@ export const useCourseProgressData = () => {
   const [hasMarkedComplete, setHasMarkedComplete] = useState(false);
   const [updateProgress] = useUpdateUserCourseProgressMutation();
 
-  const { data: course, isLoading: courseLoading } = useGetCourseQuery(
+  const { data: rawCourse, isLoading: courseLoading } = useGetCourseQuery(
     (courseId as string) ?? "",
     {
       skip: !courseId,
     }
   );
+
+  const course = normalizeCourse(rawCourse);
 
   const { data: userProgress, isLoading: progressLoading } =
     useGetUserCourseProgressQuery(
@@ -33,13 +40,25 @@ export const useCourseProgressData = () => {
 
   const isLoading = !isLoaded || courseLoading || progressLoading;
 
-  const currentSection = course?.sections.find((s) =>
+  const matchedSection = course?.sections.find((s) =>
     s.chapters.some((c) => c.chapterId === chapterId)
   );
 
-  const currentChapter = currentSection?.chapters.find(
+  const matchedChapter = matchedSection?.chapters.find(
     (c) => c.chapterId === chapterId
   );
+
+  const fallbackChapter = findFirstChapterWithVideo(course);
+
+  const currentSection =
+    matchedChapter && hasValidVideoUrl(matchedChapter.video)
+      ? matchedSection
+      : fallbackChapter?.section;
+
+  const currentChapter =
+    matchedChapter && hasValidVideoUrl(matchedChapter.video)
+      ? matchedChapter
+      : fallbackChapter?.chapter;
 
   const isChapterCompleted = () => {
     if (!currentSection || !currentChapter || !userProgress?.sections)

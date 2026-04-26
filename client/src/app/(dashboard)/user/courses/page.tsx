@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import { useUser } from "@clerk/nextjs";
 import { useState, useMemo } from "react";
 import Loading from "@/components/Loading";
+import { findFirstChapterWithVideo, normalizeCourse } from "@/lib/course-utils";
 
 const Courses = () => {
   const router = useRouter();
@@ -37,14 +38,12 @@ const Courses = () => {
   }, [courses, searchTerm, selectedCategory]);
 
   const handleGoToCourse = (course: Course) => {
-    if (
-      course.sections &&
-      course.sections.length > 0 &&
-      course.sections[0].chapters.length > 0
-    ) {
-      const firstChapter = course.sections[0].chapters[0];
+    const normalizedCourse = normalizeCourse(course);
+    const firstPlayableChapter = findFirstChapterWithVideo(normalizedCourse);
+
+    if (firstPlayableChapter) {
       router.push(
-        `/user/courses/${course.courseId}/chapters/${firstChapter.chapterId}`,
+        `/user/courses/${course.courseId}/chapters/${firstPlayableChapter.chapter.chapterId}`,
         {
           scroll: false,
         }
